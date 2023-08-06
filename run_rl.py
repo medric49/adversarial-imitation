@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import hydra
 from dm_control import suite
 
@@ -22,7 +20,7 @@ def main(config):
     state_dim = train_env.observation_spec().shape[0]
     action_dim = train_env.action_spec().shape[0]
     agent = agents.PGAgent(state_dim, action_dim, lr=config.lr)
-    memory = memories.ReplayMemory()
+    memory = memories.ReplayMemory(config.memory_size)
 
     trainer = rl_trainer.PGTrainer(config, agent, memory, train_env, eval_env)
     trainer.train()

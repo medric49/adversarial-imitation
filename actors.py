@@ -37,7 +37,9 @@ class SimpleObsActor(nn.Module):
             nn.Linear(128, action_dim)
         )
 
-    def forward(self, obs, std):
+    def forward(self, obs, std=None):
+        if std is None:
+            std = 0.001
         action_mean = self.net(obs)
         action_mean = torch.tanh(action_mean)
         std = torch.ones_like(action_mean) * std

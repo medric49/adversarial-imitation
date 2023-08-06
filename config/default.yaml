@@ -1,7 +1,13 @@
 num_train_steps: 1100000
+action_std_schedule: 'linear(1.0,0.1,100000)'
+action_noise_clip: 0.3
 
 seed: 123
 lr: 1e-4
+batch_size: 64
+memory_size: 5000
+
+num_seed_steps: 1000
 
 
 

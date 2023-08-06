@@ -1,4 +1,5 @@
 import random
+from collections import deque
 
 import numpy as np
 
@@ -26,20 +27,20 @@ class Episode:
 
 
 class ReplayMemory:
-    def __init__(self):
+    def __init__(self, max_size):
         self.curr_episode = Episode()
-        self.observations = []
-        self.actions = []
-        self.rewards = []
-        self.next_observations = []
+        self.observations = deque(maxlen=max_size)
+        self.actions = deque(maxlen=max_size)
+        self.rewards = deque(maxlen=max_size)
+        self.next_observations = deque(maxlen=max_size)
 
     def add_timestep(self, timestep):
         self.curr_episode.add_timestep(timestep)
         if self.curr_episode.is_over:
-            self.observations += self.curr_episode.observations[:-1]
-            self.actions += self.curr_episode.actions
-            self.rewards += self.curr_episode.rewards
-            self.next_observations += self.curr_episode.observations[1:]
+            self.observations.extend(self.curr_episode.observations[:-1])
+            self.actions.extend(self.curr_episode.actions)
+            self.rewards.extend(self.curr_episode.rewards)
+            self.next_observations.extend(self.curr_episode.observations[1:])
             self.curr_episode = Episode()
 
     def sample_steps(self, size):
