@@ -32,7 +32,8 @@ class ObservationOverrideWrapper(dm_env.Environment):
         self.dtype = dtype
         dim = 0
         for name, spec in env.observation_spec().items():
-            dim += sum(spec.shape)
+            item_dim = sum(spec.shape)
+            dim += item_dim if item_dim != 0 else 1
         self._observation_spec = specs.Array((dim,), dtype, 'observation')
 
     def override_timestep(self, timestep):

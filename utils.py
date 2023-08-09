@@ -38,3 +38,35 @@ def schedule(schdl, step):
                 mix = np.clip((step - duration1) / duration2, 0.0, 1.0)
                 return (1.0 - mix) * final1 + mix * final2
     raise NotImplementedError(schdl)
+
+
+def standardize(x, mean, std, eps=1e-6):
+    return (x - mean) / (std + eps)
+
+
+def normalize(x, x_min, x_max, eps=1e-6):
+    return (x - x_min) / (x_max - x_min + eps)
+
+
+class Until:
+    def __init__(self, until):
+        self._until = until
+
+    def __call__(self, step):
+        if self._until is None:
+            return True
+        until = self._until
+        return step < until
+
+
+class Every:
+    def __init__(self, every):
+        self._every = every
+
+    def __call__(self, step):
+        if self._every is None:
+            return False
+        every = self._every
+        if step % every == 0:
+            return True
+        return False

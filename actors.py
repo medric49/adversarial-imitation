@@ -34,14 +34,15 @@ class SimpleObsActor(nn.Module):
 
         self.net = nn.Sequential(
             nn.Linear(state_dim, 128),
-            nn.Linear(128, action_dim)
+            nn.LeakyReLU(),
+            nn.Linear(128, action_dim),
+            nn.Tanh()
         )
 
     def forward(self, obs, std=None):
         if std is None:
             std = 0.001
         action_mean = self.net(obs)
-        action_mean = torch.tanh(action_mean)
         std = torch.ones_like(action_mean) * std
         dist = TruncatedNormal(action_mean, std)
         return dist

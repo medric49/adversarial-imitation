@@ -5,7 +5,8 @@ import numpy as np
 
 
 class Episode:
-    def __init__(self):
+    def __init__(self, discount):
+        self.discount = discount
         self.observations = []
         self.actions = []
         self.rewards = []
@@ -22,13 +23,23 @@ class Episode:
         if timestep.last():
             self.is_over = True
 
+    @property
+    def rewards_to_go(self):
+        rewards_to_go = []
+        for i in range(len(self)):
+            reward_to_go = sum([reward * (self.discount ** j) for j, reward in enumerate(self.rewards[i:])])
+            rewards_to_go.append(reward_to_go)
+        return rewards_to_go
+
     def __len__(self):
         return len(self.observations) - 1
 
 
 class ReplayMemory:
-    def __init__(self, max_size):
-        self.curr_episode = Episode()
+    def __init__(self, max_size, discount):
+        self.discount = discount
+        self.curr_episode = Episode(self.discount)
+
         self.observations = deque(maxlen=max_size)
         self.actions = deque(maxlen=max_size)
         self.rewards = deque(maxlen=max_size)
@@ -39,29 +50,18 @@ class ReplayMemory:
         if self.curr_episode.is_over:
             self.observations.extend(self.curr_episode.observations[:-1])
             self.actions.extend(self.curr_episode.actions)
-            self.rewards.extend(self.curr_episode.rewards)
+            self.rewards.extend(self.curr_episode.rewards_to_go)
             self.next_observations.extend(self.curr_episode.observations[1:])
-            self.curr_episode = Episode()
+            self.curr_episode = Episode(self.discount)
 
     def sample_steps(self, size):
         indices = list(range(len(self.observations)))
         random.shuffle(indices)
-
-        observations = []
-        actions = []
-        rewards = []
-        next_observations = []
-        for i in range(min(size, len(indices))):
-            index = indices[i]
-            observations.append(self.observations[index])
-            actions.append(self.actions[index])
-            rewards.append(self.rewards[index])
-            next_observations.append(self.next_observations[index])
-
-        observations = np.stack(observations)
-        actions = np.stack(actions)
-        rewards = np.stack(rewards)
-        next_observations = np.stack(next_observations)
+        indices = indices[:size]
+        observations = np.stack(self.observations)[indices]
+        actions = np.stack(self.actions)[indices]
+        rewards = np.stack(self.rewards)[indices]
+        next_observations = np.stack(self.next_observations)[indices]
         return observations, actions, rewards, next_observations
 
 

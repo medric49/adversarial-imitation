@@ -27,10 +27,13 @@ class PGAgent:
         action = torch.tensor(action, dtype=torch.float, device=utils.device())
         reward = torch.tensor(reward, dtype=torch.float, device=utils.device())
 
+        # weights = utils.normalize(reward, reward.min().detach(), reward.max().detach())
+        weights = utils.standardize(reward, reward.mean().detach(), reward.std().detach())
+
         self.optimizer.zero_grad()
         pred_action_dist = self.net(obs, std=action_std)
-        log_prob = pred_action_dist.log_prob(action)
-        loss = - (log_prob * reward).mean()
+        log_prob = pred_action_dist.log_prob(action).sum(-1, keepdim=True)
+        loss = - (log_prob * weights).mean()
         loss.backward()
         self.optimizer.step()
 
