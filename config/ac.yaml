@@ -1,0 +1,33 @@
+num_train_steps: 1100000
+action_std_schedule: 'linear(1.0,0.1,1000000)'
+action_noise_clip: 0.3
+
+seed: 123
+memory_size: 1000000
+
+lr: 1e-3
+batch_size: 512
+
+
+update_every_steps: 1
+num_updates: 1
+
+eval_every_steps: 5000
+num_eval_episodes: 3
+
+
+
+discount: 0.95
+
+num_seed_steps: 5000
+
+render_im_width: 256
+render_im_height: 256
+
+
+exp_group: ${now:%Y.%m.%d}
+exp_id: ${now:%H%M%S}
+
+hydra:
+  run:
+    dir: ./exp/${exp_group}/${exp_id}

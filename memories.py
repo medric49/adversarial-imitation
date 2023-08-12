@@ -19,6 +19,8 @@ class Episode:
         if not timestep.first():
             self.actions.append(timestep.action)
             self.rewards.append(timestep.reward)
+            if timestep.reward != 0:
+                print(timestep.reward)
 
         if timestep.last():
             self.is_over = True
@@ -43,6 +45,7 @@ class ReplayMemory:
         self.observations = deque(maxlen=max_size)
         self.actions = deque(maxlen=max_size)
         self.rewards = deque(maxlen=max_size)
+        self.rewards_to_go = deque(maxlen=max_size)
         self.next_observations = deque(maxlen=max_size)
 
     def add_timestep(self, timestep):
@@ -50,18 +53,20 @@ class ReplayMemory:
         if self.curr_episode.is_over:
             self.observations.extend(self.curr_episode.observations[:-1])
             self.actions.extend(self.curr_episode.actions)
-            self.rewards.extend(self.curr_episode.rewards_to_go)
+            self.rewards.extend(self.curr_episode.rewards)
+            self.rewards_to_go.extend(self.curr_episode.rewards_to_go)
             self.next_observations.extend(self.curr_episode.observations[1:])
             self.curr_episode = Episode(self.discount)
 
-    def sample_steps(self, size):
+    def sample_steps(self, size, reward_to_go):
         indices = list(range(len(self.observations)))
         random.shuffle(indices)
         indices = indices[:size]
         observations = np.stack(self.observations)[indices]
         actions = np.stack(self.actions)[indices]
-        rewards = np.stack(self.rewards)[indices]
+        if reward_to_go:
+            rewards = np.stack(self.rewards_to_go)[indices]
+        else:
+            rewards = np.stack(self.rewards)[indices]
         next_observations = np.stack(self.next_observations)[indices]
         return observations, actions, rewards, next_observations
-
-

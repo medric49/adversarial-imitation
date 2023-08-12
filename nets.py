@@ -28,11 +28,11 @@ class TruncatedNormal(pyd.Normal):
         return self._clip(x)
 
 
-class SimpleObsActor(nn.Module):
+class BasicActor(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
 
-        self.net = nn.Sequential(
+        self.policy_net = nn.Sequential(
             nn.Linear(state_dim, 128),
             nn.LeakyReLU(),
             nn.Linear(128, action_dim),
@@ -42,8 +42,23 @@ class SimpleObsActor(nn.Module):
     def forward(self, obs, std=None):
         if std is None:
             std = 0.001
-        action_mean = self.net(obs)
+        action_mean = self.policy_net(obs)
         std = torch.ones_like(action_mean) * std
         dist = TruncatedNormal(action_mean, std)
         return dist
+
+
+class BasicQCritic(nn.Module):
+    def __init__(self, state_dim, actor_dim):
+        super().__init__()
+
+        self.q_value_net = nn.Sequential(
+            nn.Linear(state_dim + actor_dim, 128),
+            nn.LeakyReLU(),
+            nn.Linear(128, 1)
+        )
+
+    def forward(self, obs, action):
+        q_value = self.q_value_net(torch.concatenate([obs, action], dim=1))
+        return q_value
 

@@ -1,28 +1,29 @@
 import torch
 
 import utils
-from actors import SimpleObsActor
+import nets
+import torch.nn.functional as F
 
 
 class PGAgent:
     def __init__(self, state_dim, action_dim, lr):
-        self.net = SimpleObsActor(state_dim, action_dim).to(utils.device())
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=lr)
+        self.actor = nets.BasicActor(state_dim, action_dim).to(utils.device())
+        self.optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
 
     def act(self, obs, action_std=None, action_noise_clip=None):
         obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
         obs = torch.unsqueeze(obs, dim=0)
 
-        self.net.eval()
+        self.actor.eval()
         with torch.no_grad():
             if action_std is not None:
-                action = self.net(obs, std=action_std).sample(clip=action_noise_clip)
+                action = self.actor(obs, std=action_std).sample(clip=action_noise_clip)
             else:
-                action = self.net(obs).mean
+                action = self.actor(obs).mean
         return action.cpu().numpy()[0]
 
     def update(self, obs, action, reward, next_obs, action_std):
-        self.net.train()
+        self.actor.train()
         obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
         action = torch.tensor(action, dtype=torch.float, device=utils.device())
         reward = torch.tensor(reward, dtype=torch.float, device=utils.device())
@@ -31,7 +32,7 @@ class PGAgent:
         weights = utils.standardize(reward, reward.mean().detach(), reward.std().detach())
 
         self.optimizer.zero_grad()
-        pred_action_dist = self.net(obs, std=action_std)
+        pred_action_dist = self.actor(obs, std=action_std)
         log_prob = pred_action_dist.log_prob(action).sum(-1, keepdim=True)
         loss = - (log_prob * weights).mean()
         loss.backward()
@@ -41,5 +42,63 @@ class PGAgent:
             'batch_log_prob': log_prob.mean().item(),
             'batch_reward_mean': reward.mean().item(),
             'batch_loss': loss.item()
+        }
+
+
+class QACAgent:
+    def __init__(self, state_dim, action_dim, lr):
+        self.actor = nets.BasicActor(state_dim, action_dim).to(utils.device())
+        self.critic = nets.BasicQCritic(state_dim, action_dim).to(utils.device())
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
+
+    def act(self, obs, action_std=None, action_noise_clip=None):
+        obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
+        obs = torch.unsqueeze(obs, dim=0)
+
+        self.actor.eval()
+        with torch.no_grad():
+            if action_std is not None:
+                action = self.actor(obs, std=action_std).sample(clip=action_noise_clip)
+            else:
+                action = self.actor(obs).mean
+        return action.cpu().numpy()[0]
+
+    def update(self, obs, action, reward, next_obs, action_std, discount):
+
+        obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
+        action = torch.tensor(action, dtype=torch.float, device=utils.device())
+        reward = torch.tensor(reward, dtype=torch.float, device=utils.device())
+        next_obs = torch.tensor(next_obs, dtype=torch.float, device=utils.device())
+
+        self.critic.eval()
+        self.actor.train()
+        self.actor_optimizer.zero_grad()
+        with torch.no_grad():
+            q_values = self.critic(obs, action)
+        pred_action_dist = self.actor(obs, std=action_std)
+        log_prob = pred_action_dist.log_prob(action).sum(-1, keepdim=True)
+        actor_loss = - (log_prob * q_values).mean()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+
+        self.actor.eval()
+        with torch.no_grad():
+            next_action = self.actor(next_obs).mean
+            next_q_values = self.critic(next_obs, next_action).flatten()
+            td_target = reward + discount * next_q_values
+
+        self.critic.train()
+        self.critic_optimizer.zero_grad()
+        q_values = self.critic(obs, action).flatten()
+        critic_loss = F.mse_loss(q_values, td_target)
+        critic_loss.backward()
+        self.critic_optimizer.step()
+
+        return {
+            'batch_log_prob': log_prob.mean().item(),
+            'batch_reward_mean': reward.mean().item(),
+            'batch_actor_loss': actor_loss.item(),
+            'batch_critic_loss': critic_loss.item()
         }
 
