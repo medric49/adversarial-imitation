@@ -1,5 +1,6 @@
 import torch
 
+import memories
 import utils
 import nets
 import torch.nn.functional as F
@@ -22,8 +23,8 @@ class PGAgent:
                 action = self.actor(obs).mean
         return action.cpu().numpy()[0]
 
-    def update(self, obs, action, reward, next_obs, action_std):
-        self.actor.train()
+    def update(self, memory: memories.ReplayMemory, batch_size, action_std):
+        obs, action, reward, next_obs = memory.sample_steps(batch_size, reward_to_go=True)
         obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
         action = torch.tensor(action, dtype=torch.float, device=utils.device())
         reward = torch.tensor(reward, dtype=torch.float, device=utils.device())
@@ -31,6 +32,7 @@ class PGAgent:
         # weights = utils.normalize(reward, reward.min().detach(), reward.max().detach())
         weights = utils.standardize(reward, reward.mean().detach(), reward.std().detach())
 
+        self.actor.train()
         self.optimizer.zero_grad()
         pred_action_dist = self.actor(obs, std=action_std)
         log_prob = pred_action_dist.log_prob(action).sum(-1, keepdim=True)
@@ -64,12 +66,11 @@ class QACAgent:
                 action = self.actor(obs).mean
         return action.cpu().numpy()[0]
 
-    def update(self, obs, action, reward, next_obs, action_std, discount):
-
+    def update(self, memory: memories.ReplayMemory, batch_size, action_std, discount):
+        # Update Actor
+        obs, action, reward, next_obs = memory.sample_recent_steps(batch_size, reward_to_go=False)
         obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
         action = torch.tensor(action, dtype=torch.float, device=utils.device())
-        reward = torch.tensor(reward, dtype=torch.float, device=utils.device())
-        next_obs = torch.tensor(next_obs, dtype=torch.float, device=utils.device())
 
         self.critic.eval()
         self.actor.train()
@@ -81,6 +82,13 @@ class QACAgent:
         actor_loss = - (log_prob * q_values).mean()
         actor_loss.backward()
         self.actor_optimizer.step()
+
+        # Update Critic
+        obs, action, reward, next_obs = memory.sample_steps(batch_size, reward_to_go=False)
+        obs = torch.tensor(obs, dtype=torch.float, device=utils.device())
+        action = torch.tensor(action, dtype=torch.float, device=utils.device())
+        reward = torch.tensor(reward, dtype=torch.float, device=utils.device())
+        next_obs = torch.tensor(next_obs, dtype=torch.float, device=utils.device())
 
         self.actor.eval()
         with torch.no_grad():
@@ -99,6 +107,7 @@ class QACAgent:
             'batch_log_prob': log_prob.mean().item(),
             'batch_reward_mean': reward.mean().item(),
             'batch_actor_loss': actor_loss.item(),
-            'batch_critic_loss': critic_loss.item()
+            'batch_critic_loss': critic_loss.item(),
+            'batch_q_value_mean': q_values.mean().item()
         }
 

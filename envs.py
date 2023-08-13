@@ -146,9 +146,8 @@ class RenderingWrapper(Environment):
 def wrap(env):
     env = RenderingWrapper(env)
     env = ActionOverrideWrapper(env, np.float32)
-    minimum = np.ones_like(env.action_spec().minimum) * -1.
-    maximum = np.ones_like(env.action_spec().maximum) * 1.
-    env = action_scale.Wrapper(env, minimum=minimum, maximum=maximum)
+    env = action_scale.Wrapper(env, minimum=np.ones_like(env.action_spec().minimum) * -1.,
+                               maximum=np.ones_like(env.action_spec().maximum) * 1.)
     env = ObservationOverrideWrapper(env, np.float32)
     env = ExtendedTimeStepWrapper(env)
     return env

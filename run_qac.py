@@ -11,10 +11,10 @@ import utils
 @hydra.main(config_path='config', config_name='ac')
 def main(config):
     utils.set_seed_everywhere(config.seed)
-    domain = 'finger'
-    task = 'turn_easy'
-    # domain = 'cartpole'
-    # task = 'balance'
+    # domain = 'finger'
+    # task = 'turn_easy'
+    domain = 'cartpole'
+    task = 'balance'
 
     train_env = suite.load(domain, task)
     eval_env = suite.load(domain, task)

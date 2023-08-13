@@ -19,8 +19,6 @@ class Episode:
         if not timestep.first():
             self.actions.append(timestep.action)
             self.rewards.append(timestep.reward)
-            if timestep.reward != 0:
-                print(timestep.reward)
 
         if timestep.last():
             self.is_over = True
@@ -69,4 +67,14 @@ class ReplayMemory:
         else:
             rewards = np.stack(self.rewards)[indices]
         next_observations = np.stack(self.next_observations)[indices]
+        return observations, actions, rewards, next_observations
+
+    def sample_recent_steps(self, size, reward_to_go):
+        observations = np.stack(self.observations)[-size:]
+        actions = np.stack(self.actions)[-size:]
+        if reward_to_go:
+            rewards = np.stack(self.rewards_to_go)[-size:]
+        else:
+            rewards = np.stack(self.rewards)[-size:]
+        next_observations = np.stack(self.next_observations)[-size:]
         return observations, actions, rewards, next_observations

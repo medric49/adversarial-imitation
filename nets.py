@@ -35,6 +35,8 @@ class BasicActor(nn.Module):
         self.policy_net = nn.Sequential(
             nn.Linear(state_dim, 128),
             nn.LeakyReLU(),
+            nn.Linear(128, 128),
+            nn.LeakyReLU(),
             nn.Linear(128, action_dim),
             nn.Tanh()
         )
@@ -55,10 +57,11 @@ class BasicQCritic(nn.Module):
         self.q_value_net = nn.Sequential(
             nn.Linear(state_dim + actor_dim, 128),
             nn.LeakyReLU(),
+            nn.Linear(128, 128),
+            nn.LeakyReLU(),
             nn.Linear(128, 1)
         )
 
     def forward(self, obs, action):
-        q_value = self.q_value_net(torch.concatenate([obs, action], dim=1))
-        return q_value
+        return self.q_value_net(torch.concatenate([obs, action], dim=1))
 
